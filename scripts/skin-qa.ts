@@ -27,9 +27,9 @@ const images: Record<string, PNG> = {};
 for (const f of readdirSync(dir).filter((f) => f.endsWith('.png'))) images[f] = PNG.sync.read(readFileSync(join(dir, f)));
 
 const errors = validateSkin(manifest, images);
-const palette: string[] | undefined = manifest.palette;
-if (!palette) errors.push('skin.json: add a "palette" list so pixel colours can be checked');
-else for (const [f, png] of Object.entries(images)) errors.push(...checkSkinPixels(png, f, palette));
+const palette: unknown = typeof manifest === 'object' && manifest !== null ? manifest.palette : undefined;
+if (palette === undefined) errors.push('skin.json: add a "palette" list so pixel colours can be checked');
+else if (Array.isArray(palette) && palette.every((c) => typeof c === 'string')) for (const [f, png] of Object.entries(images)) errors.push(...checkSkinPixels(png, f, palette));
 
 if (errors.length > 0) {
   for (const e of errors) console.error(`✗ ${e}`);

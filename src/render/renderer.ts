@@ -25,11 +25,9 @@ export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): 
 
   const background = () => {
     ctx.imageSmoothingEnabled = false;
+    ctx.fillStyle = m.colours.background;
+    ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
     if (skin.background) ctx.drawImage(skin.background, 0, 0);
-    else {
-      ctx.fillStyle = m.colours.background;
-      ctx.fillRect(0, 0, SCREEN_W, SCREEN_H);
-    }
   };
 
   const ground = () => {

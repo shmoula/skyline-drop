@@ -16,10 +16,19 @@ if (!skin || !/^[a-z0-9-]+$/.test(skin)) {
 const artDir = join('art', skin);
 const outDir = join('public', 'skins', skin);
 const legend: Record<string, string> = JSON.parse(readFileSync(join(artDir, 'legend.json'), 'utf8'));
+if (typeof legend !== 'object' || legend === null || Array.isArray(legend)) {
+  console.error('legend.json: must be an object mapping characters to #RRGGBB colours');
+  process.exit(1);
+}
+const badLegend = Object.entries(legend).filter(([, v]) => typeof v !== 'string' || !/^#[0-9a-fA-F]{6}$/.test(v));
+if (badLegend.length > 0) {
+  for (const [ch, v] of badLegend) console.error(`legend.json: "${ch}" must be a #RRGGBB colour, is ${JSON.stringify(v)}`);
+  process.exit(1);
+}
 
 let failed = false;
 for (const file of readdirSync(artDir).filter((f) => f.endsWith('.chart')).sort()) {
-  const rows = readFileSync(join(artDir, file), 'utf8').split('\n').filter((r) => r.length > 0);
+  const rows = readFileSync(join(artDir, file), 'utf8').split(/\r?\n/).filter((r) => r.length > 0);
   const width = rows[0]?.length ?? 0;
   const ragged = rows.findIndex((r) => r.length !== width);
   if (width === 0 || ragged >= 0) {
