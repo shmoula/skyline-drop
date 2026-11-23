@@ -14,6 +14,12 @@ describe('starting a run', () => {
     expect(s.score).toBe(0);
     expect(s.plane).toEqual({ x: -16, row: 2 });
   });
+
+  it('builds a city with buildings to bomb', () => {
+    const s = step(newGame(OPTS), { pressed: true }, 16);
+    expect(s.city.heights.reduce((a, b) => a + b, 0)).toBeGreaterThan(0);
+    expect(s.rngState).not.toBe(OPTS.seed);
+  });
 });
 
 describe('plane flight', () => {

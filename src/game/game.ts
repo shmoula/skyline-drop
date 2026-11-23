@@ -1,14 +1,10 @@
 import { CELL_H, CELL_W, COLS, GROUND_ROW, PLANE_START_ROW, SCREEN_W } from './grid';
+import { generateCity, type City } from './city';
 import { DEFAULT_TUNING, planeSpeed, type Tuning } from './tuning';
 
-export type Phase = 'title' | 'playing' | 'clearing' | 'landed' | 'crashed' | 'gameOver';
+export type { City } from './city';
 
-export interface City {
-  /** Floors per column (length COLS); 0 = empty. */
-  heights: number[];
-  /** Building type per column, 1..buildingTypes (0 for empty columns). */
-  types: number[];
-}
+export type Phase = 'title' | 'playing' | 'clearing' | 'landed' | 'crashed' | 'gameOver';
 
 export interface Explosion {
   x: number;
@@ -176,8 +172,11 @@ function flyPlane(s: GameState, dtMs: number): GameState['plane'] {
 }
 
 function startRun(s: GameState): GameState {
+  const { city, rngState } = generateCity(1, s);
   return {
     ...s,
+    rngState,
+    city,
     phase: 'playing',
     timerMs: 0,
     level: 1,
@@ -186,7 +185,6 @@ function startRun(s: GameState): GameState {
     plane: { x: -s.planeWidth, row: PLANE_START_ROW },
     bomb: null,
     explosions: [],
-    city: emptyCity(), // real generation arrives in Task 5
   };
 }
 
