@@ -13,7 +13,7 @@
     "skin:build": "tsx scripts/build-skin.ts",
     "skin:qa": "tsx scripts/skin-qa.ts"
   },
-  "license": "UNLICENSED",
+  "license": "MIT",
   "type": "module",
   "devDependencies": {
     "@types/node": "^26.6.6",

@@ -63,3 +63,9 @@ smoothing, snap every colour to your palette, clean up stray pixels, and let
 Pushing to `main` runs `.github/workflows/deploy.yml`: tests, build, and publish
 `dist/` to GitHub Pages (enable Pages → "GitHub Actions" in the repo settings).
 The build uses relative paths, so it works from any sub-path.
+
+## License
+
+Code: [MIT](LICENSE). Skins carry their own license in their `CREDITS.md` —
+the bundled `classic` skin is CC0. If you contribute a skin, state its license
+there.
