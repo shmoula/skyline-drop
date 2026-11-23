@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Skyline Drop</title>
+    <style>
+      html, body { margin: 0; height: 100%; background: #000; overflow: hidden; }
+      canvas { position: absolute; image-rendering: pixelated; touch-action: none; }
+      #error { position: absolute; inset: 0; margin: auto; height: fit-content; max-width: 32em;
+               padding: 1em; color: #fff; background: #a00; font: 14px/1.4 monospace; white-space: pre-wrap; }
+    </style>
+  </head>
+  <body>
+    <canvas id="game" width="320" height="200"></canvas>
+    <div id="error" hidden></div>
+    <script type="module" src="./src/main.ts"></script>
+  </body>
+</html>
