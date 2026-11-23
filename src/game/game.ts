@@ -67,11 +67,68 @@ export function newGame(opts: NewGameOptions): GameState {
 
 /** Advance the game by `dtMs`. Pure: never mutates `s`. */
 export function step(s: GameState, input: Input, dtMs: number): GameState {
-  if (s.phase === 'title') return input.pressed ? startRun(s) : s;
+  switch (s.phase) {
+    case 'title':
+      return input.pressed ? startRun(s) : s;
+    case 'crashed':
+      return tickCrashed(s, dtMs);
+    case 'gameOver':
+      return tickGameOver(s, input, dtMs);
+    default:
+      return tickFlying(s, input, dtMs);
+  }
+}
+
+function tickFlying(s: GameState, input: Input, dtMs: number): GameState {
   let next: GameState = { ...s, explosions: ageExplosions(s.explosions, dtMs) };
   if (input.pressed) next = dropBomb(next);
   next = fallBomb(next, dtMs);
-  return { ...next, plane: flyPlane(next, dtMs) };
+  next = { ...next, plane: flyPlane(next, dtMs) };
+  return hitsBuilding(next) ? crash(next) : next;
+}
+
+function tickCrashed(s: GameState, dtMs: number): GameState {
+  const timerMs = s.timerMs + dtMs;
+  const explosions = ageExplosions(s.explosions, dtMs);
+  if (timerMs < s.tuning.crashMs) return { ...s, timerMs, explosions };
+  return {
+    ...s,
+    phase: 'gameOver',
+    timerMs: 0,
+    explosions,
+    newBest: s.score > s.best,
+    best: Math.max(s.best, s.score),
+  };
+}
+
+function tickGameOver(s: GameState, input: Input, dtMs: number): GameState {
+  const timerMs = s.timerMs + dtMs;
+  if (input.pressed && s.timerMs >= s.tuning.gameOverLockMs) return startRun(s);
+  return { ...s, timerMs };
+}
+
+/** Columns the plane sprite overlaps on screen (empty when fully off-screen). */
+function planeColumns(s: GameState): number[] {
+  const left = Math.max(s.plane.x, 0);
+  const right = Math.min(s.plane.x + s.planeWidth - 1, SCREEN_W - 1);
+  if (right < left) return [];
+  const cols: number[] = [];
+  for (let c = Math.floor(left / CELL_W); c <= Math.floor(right / CELL_W); c++) cols.push(c);
+  return cols;
+}
+
+function hitsBuilding(s: GameState): boolean {
+  return planeColumns(s).some((c) => (s.city.heights[c] ?? 0) >= GROUND_ROW - s.plane.row);
+}
+
+function crash(s: GameState): GameState {
+  return {
+    ...s,
+    phase: 'crashed',
+    timerMs: 0,
+    bomb: null,
+    explosions: [...s.explosions, { x: s.plane.x, y: s.plane.row * CELL_H, ageMs: 0 }],
+  };
 }
 
 /** How long an explosion stays in the state (the renderer animates within this). */
