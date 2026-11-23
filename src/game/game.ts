@@ -115,7 +115,7 @@ function tickLanded(s: GameState, dtMs: number): GameState {
   const timerMs = s.timerMs + dtMs;
   if (timerMs < s.tuning.landingPauseMs) return { ...s, timerMs, explosions: ageExplosions(s.explosions, dtMs) };
   const level = s.level + 1;
-  const { city, rngState } = generateCity(level, { ...s, rngState: s.rngState });
+  const { city, rngState } = newCity(s, level);
   return {
     ...s,
     phase: 'playing',
@@ -218,7 +218,7 @@ function flyPlane(s: GameState, dtMs: number): GameState['plane'] {
 }
 
 function startRun(s: GameState): GameState {
-  const { city, rngState } = generateCity(1, s);
+  const { city, rngState } = newCity(s, 1);
   return {
     ...s,
     rngState,
@@ -232,6 +232,41 @@ function startRun(s: GameState): GameState {
     bomb: null,
     explosions: [],
   };
+}
+
+/** Rows of slack the clearability check gives a human over the bot. */
+const BOT_SLACK_ROWS = 2;
+
+function newCity(s: GameState, level: number): { city: City; rngState: number } {
+  return generateCity(level, {
+    rngState: s.rngState,
+    buildingTypes: s.buildingTypes,
+    // Must pass from the real start row and with BOT_SLACK_ROWS fewer passes, so there is room for mistakes.
+    isClearable: (city) =>
+      botClears(s, level, city, PLANE_START_ROW + BOT_SLACK_ROWS) && botClears(s, level, city, PLANE_START_ROW),
+  });
+}
+
+/**
+ * Can a simple bot clear `city` on `level` with the plane starting on `startRow`?
+ * The bot drops a bomb whenever one is free and the plane is over a building. Runs the real rules.
+ */
+function botClears(base: GameState, level: number, city: City, startRow: number): boolean {
+  let s: GameState = {
+    ...base,
+    phase: 'playing',
+    level,
+    city,
+    bomb: null,
+    explosions: [],
+    plane: { x: -base.planeWidth, row: startRow },
+  };
+  const dt = 1000 / 60;
+  for (let t = 0; t < 600_000 && s.phase === 'playing'; t += dt) {
+    const col = Math.floor((s.plane.x + s.planeWidth / 2) / CELL_W);
+    s = tickFlying(s, { pressed: !s.bomb && (s.city.heights[col] ?? 0) > 0 }, dt);
+  }
+  return s.phase === 'clearing';
 }
 
 function emptyCity(): City {

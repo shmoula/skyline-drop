@@ -107,13 +107,15 @@ no town names**.
   random, so a skin with 3 types shows 3 visual styles.
 - Levels are **generated randomly** each run from parameters that grow with level
   number: number of occupied columns and min/max height. **Every level is
-  clearable by a perfect player** (my call): the generator computes a budget =
-  passes available before the plane reaches the tallest building's top × bombs
-  that fit in one pass (from plane speed and bomb fall time) × `floorsPerBomb`,
-  and regenerates cities whose total floors exceed a safety margin of it (e.g.
-  70%). Difficulty comes from how tight the budget is, so the curve levels off
-  naturally. A unit test asserts the rule for levels 1–20. Parameters live in
-  one config table so they're easy to tune.
+  clearable** (my call, revised after review): the generator runs the real
+  game rules with a simple bot (drop whenever a bomb is free over a building)
+  and keeps the city only if the bot clears it both from the normal start row
+  and from 2 rows lower (slack for a human). If not, whole buildings are removed
+  in random order (fewest removals) so the skyline stays tall and varied; only
+  a lone building is ever lowered. Heights are capped at 14 floors — the tallest
+  a building can be and still be cleared one bomb per pass with slack. Tests
+  assert the bot clears levels 1–20 and that level 15 is taller and denser than
+  level 5. Parameters live in one config table so they're easy to tune.
 - A building's **top cell is drawn with the roof tile**, the rest with the floor
   tile; after a hit the new top cell becomes the roof. Every cell, roof
   included, counts as one floor for scoring.

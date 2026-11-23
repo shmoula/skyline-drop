@@ -1,6 +1,5 @@
-import { CELL_H, COLS, GROUND_ROW, PLANE_START_ROW, SCREEN_W } from './grid';
+import { COLS } from './grid';
 import { nextRandom } from './rng';
-import { planeSpeed, type Tuning } from './tuning';
 
 export interface City {
   /** Floors per column (length COLS); 0 = empty. */
@@ -9,26 +8,20 @@ export interface City {
   types: number[];
 }
 
-/**
- * How many floors a perfect player can destroy before the plane reaches the tallest roof.
- * Conservative: one bomb in flight, each falling the full height from the start row.
- */
-export function floorBudget(maxHeight: number, level: number, planeWidth: number, tuning: Tuning): number {
-  const passes = Math.max(0, GROUND_ROW - maxHeight - PLANE_START_ROW);
-  const passMs = ((SCREEN_W + planeWidth) / planeSpeed(level, tuning)) * 1000;
-  const fallMs = (((GROUND_ROW - PLANE_START_ROW - 1) * CELL_H) / tuning.bombFallPxPerS) * 1000;
-  const bombsPerPass = Math.floor(passMs / fallMs);
-  return passes * bombsPerPass * tuning.floorsPerBomb;
-}
-
 export interface CityOptions {
   rngState: number;
   buildingTypes: number;
-  planeWidth: number;
-  tuning: Tuning;
+  /** Can a player clear this city on this level? Decides how much of the drawn city is kept. */
+  isClearable: (city: City) => boolean;
 }
 
-/** A random city for `level` that a perfect player can always clear. Pure: returns the advanced rng state. */
+/**
+ * A random city for `level` that `isClearable` accepts. Pure: returns the advanced rng state.
+ *
+ * Draw a skyline from the level's growth table, then — if it's too much — remove whole
+ * buildings in a random order (fewest removals that pass) so the skyline stays tall and
+ * varied. Only if a single building is still too much is its height lowered.
+ */
 export function generateCity(level: number, opts: CityOptions): { city: City; rngState: number } {
   let rng = opts.rngState;
   const rand = (): number => {
@@ -37,33 +30,56 @@ export function generateCity(level: number, opts: CityOptions): { city: City; rn
     return v;
   };
   const randInt = (lo: number, hi: number): number => lo + Math.floor(rand() * (hi - lo + 1));
+  const shuffle = (list: number[], count = list.length): number[] => {
+    const a = list.slice();
+    for (let i = 0; i < count; i++) {
+      const j = randInt(i, a.length - 1);
+      [a[i], a[j]] = [a[j]!, a[i]!];
+    }
+    return a;
+  };
 
   const occupied = Math.min(8 + 2 * (level - 1), 18);
-  const maxH = Math.min(4 + level, 16);
+  // 14 floors is the tallest a single building can be and still be cleared one bomb per pass with slack.
+  const maxH = Math.min(4 + level, 14);
   const minH = Math.min(1 + Math.floor((level - 1) / 2), maxH);
 
-  // Pick `occupied` distinct columns (partial Fisher–Yates).
-  const cols = Array.from({ length: COLS }, (_, i) => i);
-  for (let i = 0; i < occupied; i++) {
-    const j = randInt(i, COLS - 1);
-    [cols[i], cols[j]] = [cols[j]!, cols[i]!];
-  }
-
+  const cols = shuffle(Array.from({ length: COLS }, (_, i) => i), occupied).slice(0, occupied);
   const heights = Array<number>(COLS).fill(0);
   const types = Array<number>(COLS).fill(0);
-  for (const c of cols.slice(0, occupied)) {
+  for (const c of cols) {
     heights[c] = randInt(minH, maxH);
     types[c] = randInt(1, opts.buildingTypes);
   }
+  const removalOrder = shuffle(cols);
 
-  // Enforce the budget: shave the tallest building (lowest column on ties) until clearable.
-  const total = (): number => heights.reduce((a, b) => a + b, 0);
-  const tallest = (): number => heights.indexOf(Math.max(...heights));
-  while (total() > opts.tuning.budgetMargin * floorBudget(heights[tallest()]!, level, opts.planeWidth, opts.tuning)) {
-    const c = tallest();
-    heights[c]! -= 1;
-    if (heights[c] === 0) types[c] = 0;
+  const without = (k: number): City => {
+    const h = heights.slice();
+    const t = types.slice();
+    for (const c of removalOrder.slice(0, k)) {
+      h[c] = 0;
+      t[c] = 0;
+    }
+    return { heights: h, types: t };
+  };
+
+  // Fewest removals that pass: binary search (removing buildings only makes it easier),
+  // then step forward in case the predicate isn't perfectly monotone.
+  let lo = 0;
+  let hi = occupied - 1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (opts.isClearable(without(mid))) hi = mid;
+    else lo = mid + 1;
+  }
+  for (let k = lo; k < occupied; k++) {
+    const city = without(k);
+    if (opts.isClearable(city)) return { city, rngState: rng };
   }
 
-  return { city: { heights, types }, rngState: rng };
+  // Even one building is too much: lower the last one until it passes (1 floor always does).
+  const last = without(occupied - 1);
+  const c = last.heights.findIndex((h) => h > 0);
+  while (last.heights[c]! > 1 && !opts.isClearable(last)) last.heights[c]! -= 1;
+  return { city: last, rngState: rng };
 }
