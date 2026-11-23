@@ -1,4 +1,4 @@
-import { COLS, PLANE_START_ROW, SCREEN_W } from './grid';
+import { CELL_H, CELL_W, COLS, GROUND_ROW, PLANE_START_ROW, SCREEN_W } from './grid';
 import { DEFAULT_TUNING, planeSpeed, type Tuning } from './tuning';
 
 export type Phase = 'title' | 'playing' | 'clearing' | 'landed' | 'crashed' | 'gameOver';
@@ -68,7 +68,48 @@ export function newGame(opts: NewGameOptions): GameState {
 /** Advance the game by `dtMs`. Pure: never mutates `s`. */
 export function step(s: GameState, input: Input, dtMs: number): GameState {
   if (s.phase === 'title') return input.pressed ? startRun(s) : s;
-  return { ...s, plane: flyPlane(s, dtMs) };
+  let next: GameState = { ...s, explosions: ageExplosions(s.explosions, dtMs) };
+  if (input.pressed) next = dropBomb(next);
+  next = fallBomb(next, dtMs);
+  return { ...next, plane: flyPlane(next, dtMs) };
+}
+
+/** How long an explosion stays in the state (the renderer animates within this). */
+export const EXPLOSION_MS = 400;
+
+function ageExplosions(list: Explosion[], dtMs: number): Explosion[] {
+  return list.map((e) => ({ ...e, ageMs: e.ageMs + dtMs })).filter((e) => e.ageMs < EXPLOSION_MS);
+}
+
+function dropBomb(s: GameState): GameState {
+  if (s.bomb) return s;
+  const col = Math.floor((s.plane.x + s.planeWidth / 2) / CELL_W);
+  if (col < 0 || col >= COLS) return s;
+  return { ...s, bomb: { col, y: (s.plane.row + 1) * CELL_H } };
+}
+
+function fallBomb(s: GameState, dtMs: number): GameState {
+  if (!s.bomb) return s;
+  const { col } = s.bomb;
+  const y = s.bomb.y + (s.tuning.bombFallPxPerS * dtMs) / 1000;
+  const h = s.city.heights[col] ?? 0;
+  const topY = (GROUND_ROW - h) * CELL_H;
+  if (h > 0 && y + CELL_H >= topY) {
+    const removed = Math.min(s.tuning.floorsPerBomb, h);
+    const heights = s.city.heights.slice();
+    heights[col] = h - removed;
+    const types = s.city.types.slice();
+    if (heights[col] === 0) types[col] = 0;
+    return {
+      ...s,
+      bomb: null,
+      score: s.score + removed * s.level,
+      city: { heights, types },
+      explosions: [...s.explosions, { x: col * CELL_W, y: topY, ageMs: 0 }],
+    };
+  }
+  if (y + CELL_H >= GROUND_ROW * CELL_H) return { ...s, bomb: null };
+  return { ...s, bomb: { col, y } };
 }
 
 function flyPlane(s: GameState, dtMs: number): GameState['plane'] {
