@@ -70,6 +70,10 @@ export function step(s: GameState, input: Input, dtMs: number): GameState {
       return tickCrashed(s, dtMs);
     case 'gameOver':
       return tickGameOver(s, input, dtMs);
+    case 'landed':
+      return tickLanded(s, dtMs);
+    case 'clearing':
+      return tickClearing(s, dtMs);
     default:
       return tickFlying(s, input, dtMs);
   }
@@ -80,7 +84,49 @@ function tickFlying(s: GameState, input: Input, dtMs: number): GameState {
   if (input.pressed) next = dropBomb(next);
   next = fallBomb(next, dtMs);
   next = { ...next, plane: flyPlane(next, dtMs) };
-  return hitsBuilding(next) ? crash(next) : next;
+  if (hitsBuilding(next)) return crash(next);
+  if (!next.bomb && next.city.heights.every((h) => h === 0)) {
+    return {
+      ...next,
+      phase: 'clearing',
+      timerMs: 0,
+      score: next.score + next.tuning.clearBonusPerLevel * next.level,
+    };
+  }
+  return next;
+}
+
+/** City is gone: keep flying, drop a row every `landingDropMs` until just above the ground. */
+function tickClearing(s: GameState, dtMs: number): GameState {
+  const lastRow = GROUND_ROW - 1;
+  let timerMs = s.timerMs + dtMs;
+  let { x, row } = flyPlane(s, dtMs);
+  while (timerMs >= s.tuning.landingDropMs && row < lastRow) {
+    timerMs -= s.tuning.landingDropMs;
+    row += 1;
+  }
+  row = Math.min(row, lastRow);
+  const explosions = ageExplosions(s.explosions, dtMs);
+  if (row === lastRow) return { ...s, phase: 'landed', timerMs: 0, plane: { x, row }, explosions };
+  return { ...s, timerMs, plane: { x, row }, explosions };
+}
+
+function tickLanded(s: GameState, dtMs: number): GameState {
+  const timerMs = s.timerMs + dtMs;
+  if (timerMs < s.tuning.landingPauseMs) return { ...s, timerMs, explosions: ageExplosions(s.explosions, dtMs) };
+  const level = s.level + 1;
+  const { city, rngState } = generateCity(level, { ...s, rngState: s.rngState });
+  return {
+    ...s,
+    phase: 'playing',
+    timerMs: 0,
+    level,
+    city,
+    rngState,
+    plane: { x: -s.planeWidth, row: PLANE_START_ROW },
+    bomb: null,
+    explosions: [],
+  };
 }
 
 function tickCrashed(s: GameState, dtMs: number): GameState {
