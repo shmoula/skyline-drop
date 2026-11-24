@@ -1,0 +1,9 @@
+{
+  "name": "Classic",
+  "buildingTypes": 3,
+  "font": { "charWidth": 8, "charHeight": 8 },
+  "planeFrames": 1,
+  "explosionFrames": 4,
+  "colours": { "background": "#FFFFFF" },
+  "palette": ["#000000", "#FFFFFF", "#B0B0B0", "#E04040", "#F0D040", "#40A040", "#4060D0", "#80C0F0"]
+}
