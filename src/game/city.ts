@@ -1,4 +1,4 @@
-import { COLS } from './grid';
+import { COLS, MAX_FLOORS } from './grid';
 import { nextRandom } from './rng';
 
 export interface City {
@@ -40,8 +40,8 @@ export function generateCity(level: number, opts: CityOptions): { city: City; rn
   };
 
   const occupied = Math.min(8 + 2 * (level - 1), 18);
-  // 14 floors is the tallest a single building can be and still be cleared one bomb per pass with slack.
-  const maxH = Math.min(4 + level, 14);
+  // MAX_FLOORS is the tallest a single building can be and still be cleared one bomb per pass with slack.
+  const maxH = Math.min(4 + level, MAX_FLOORS);
   const minH = Math.min(1 + Math.floor((level - 1) / 2), maxH);
 
   const cols = shuffle(Array.from({ length: COLS }, (_, i) => i), occupied).slice(0, occupied);
