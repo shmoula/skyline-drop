@@ -10,7 +10,7 @@ export interface SharedCity {
   score: number;
 }
 
-const FORMAT = 1;
+const FORMAT = '1';
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_';
 const MAX_TYPE = 63;
 const MAX_SCORE = 999_999;
@@ -35,7 +35,7 @@ export function displayName(name: string): string {
 }
 
 function encodeHead(c: Pick<SharedCity, 'rules' | 'city'>): string {
-  let out = ALPHABET[FORMAT]! + ALPHABET[c.rules]!;
+  let out = FORMAT + ALPHABET[c.rules]!;
   for (let i = 0; i < COLS; i++) out += ALPHABET[c.city.heights[i]!]! + ALPHABET[c.city.types[i]!]!;
   return out;
 }
@@ -55,7 +55,7 @@ export function decodeCity(code: string): SharedCity | null {
   const [head, scoreStr, nameStr] = parts as [string, string, string];
   if (head.length !== HEAD_LEN) return null;
   if (!/^[A-Za-z0-9_-]+$/.test(head)) return null;
-  if (head[0] !== ALPHABET[FORMAT]) return null;
+  if (head[0] !== FORMAT) return null;
 
   const rules = ALPHABET.indexOf(head[1]!);
   if (getRules(rules) === null) return null;

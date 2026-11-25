@@ -19,6 +19,13 @@ describe('city code', () => {
     expect(c).toMatch(/^[A-Za-z0-9._-]+$/);
     expect(c.length).toBeLessThan(70);
   });
+  it('starts with the literal format marker 1', () => expect(encodeCity(sample)[0]).toBe('1'));
+  it('round-trips boundary values', () => {
+    const city = cityWith({ 5: 14 });
+    city.types[5] = 63;
+    const s: SharedCity = { rules: 1, city, name: 'ABCDEFGHIJ', score: 999999 };
+    expect(decodeCity(encodeCity(s))).toEqual(s);
+  });
   it('keeps style ids up to 63', () => {
     const city = cityWith({ 3: 2 });
     city.types[3] = 63;
