@@ -1,6 +1,7 @@
 import { CELL_H, CELL_W, COLS, GROUND_ROW, PLANE_START_ROW, SCREEN_W } from './grid';
 import { generateCity, type City } from './city';
 import { DEFAULT_TUNING, planeSpeed, type Tuning } from './tuning';
+import type { RuleSet } from './rules';
 
 export type { City } from './city';
 
@@ -12,7 +13,18 @@ export interface Explosion {
   ageMs: number;
 }
 
+export interface Challenge {
+  name: string;
+  score: number;
+}
+
 export interface GameState {
+  mode: 'run' | 'single';
+  singleCity: City | null;
+  /** Plane row at the moment a single-city level was cleared; null until then. */
+  clearedRow: number | null;
+  bonusPerRow: number;
+  challenge: Challenge | null;
   phase: Phase;
   timerMs: number;
   level: number;
@@ -44,6 +56,11 @@ export interface Input {
 /** A fresh game sitting on the title screen. */
 export function newGame(opts: NewGameOptions): GameState {
   return {
+    mode: 'run',
+    singleCity: null,
+    clearedRow: null,
+    bonusPerRow: 0,
+    challenge: null,
     phase: 'title',
     timerMs: 0,
     level: 1,
@@ -59,6 +76,36 @@ export function newGame(opts: NewGameOptions): GameState {
     rngState: opts.seed,
     tuning: { ...DEFAULT_TUNING, ...opts.tuning },
   };
+}
+
+export interface NewCityGameOptions {
+  city: City;
+  rules: RuleSet;
+  best: number;
+  challenge: Challenge | null;
+}
+
+/** A fresh single-city game (one shared city, one level) sitting on the title screen. */
+export function newCityGame(opts: NewCityGameOptions): GameState {
+  return {
+    ...newGame({ best: opts.best, seed: 1, planeWidth: opts.rules.planeWidth, buildingTypes: 1 }),
+    mode: 'single',
+    singleCity: opts.city,
+    city: opts.city,
+    level: opts.rules.level,
+    bonusPerRow: opts.rules.bonusPerRow,
+    challenge: opts.challenge,
+    tuning: { ...opts.rules.tuning },
+  };
+}
+
+/** Can the bot (with the usual human slack) clear `city` under `rules`? */
+export function isClearable(city: City, rules: RuleSet): boolean {
+  const base = newCityGame({ city, rules, best: 0, challenge: null });
+  return (
+    botClears(base, rules.level, city, PLANE_START_ROW + BOT_SLACK_ROWS) &&
+    botClears(base, rules.level, city, PLANE_START_ROW)
+  );
 }
 
 /** Advance the game by `dtMs`. Pure: never mutates `s`. */
@@ -86,11 +133,14 @@ function tickFlying(s: GameState, input: Input, dtMs: number): GameState {
   next = { ...next, plane: flyPlane(next, dtMs) };
   if (hitsBuilding(next)) return crash(next);
   if (!next.bomb && next.city.heights.every((h) => h === 0)) {
+    const single = next.mode === 'single';
+    const heightBonus = single ? (GROUND_ROW - 1 - next.plane.row) * next.bonusPerRow : 0;
     return {
       ...next,
       phase: 'clearing',
       timerMs: 0,
-      score: next.score + next.tuning.clearBonusPerLevel * next.level,
+      clearedRow: single ? next.plane.row : next.clearedRow,
+      score: next.score + next.tuning.clearBonusPerLevel * next.level + heightBonus,
     };
   }
   return next;
@@ -114,6 +164,16 @@ function tickClearing(s: GameState, dtMs: number): GameState {
 function tickLanded(s: GameState, dtMs: number): GameState {
   const timerMs = s.timerMs + dtMs;
   if (timerMs < s.tuning.landingPauseMs) return { ...s, timerMs, explosions: ageExplosions(s.explosions, dtMs) };
+  if (s.mode === 'single') {
+    return {
+      ...s,
+      phase: 'gameOver',
+      timerMs: 0,
+      explosions: ageExplosions(s.explosions, dtMs),
+      newBest: s.score > s.best,
+      best: Math.max(s.best, s.score),
+    };
+  }
   const level = s.level + 1;
   const { city, rngState } = newCity(s, level);
   return {
@@ -218,14 +278,16 @@ function flyPlane(s: GameState, dtMs: number): GameState['plane'] {
 }
 
 function startRun(s: GameState): GameState {
-  const { city, rngState } = newCity(s, 1);
+  const single = s.mode === 'single' && s.singleCity !== null;
+  const { city, rngState } = single ? { city: s.singleCity!, rngState: s.rngState } : newCity(s, 1);
   return {
     ...s,
     rngState,
     city,
+    clearedRow: null,
     phase: 'playing',
     timerMs: 0,
-    level: 1,
+    level: single ? s.level : 1,
     score: 0,
     newBest: false,
     plane: { x: -s.planeWidth, row: PLANE_START_ROW },
