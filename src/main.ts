@@ -76,7 +76,7 @@ async function start(): Promise<void> {
     });
   }
 
-  const button = createButton(window);
+  const button = createButton(window, screen);
   let pressed = false;
   let acc = 0;
   let last: number | null = null;
