@@ -259,10 +259,13 @@ async function start(): Promise<void> {
     name.autocomplete = 'off';
     name.spellcheck = false;
     name.value = editor.name;
-    name.addEventListener('input', () => {
-      update(setName(editor!, name.value));
+    // Don't rewrite the field while typing (breaks IME composition and moves the caret); tidy it afterwards.
+    name.addEventListener('input', () => update(setName(editor!, name.value)));
+    const tidyName = () => {
       if (name.value !== editor!.name) name.value = editor!.name;
-    });
+    };
+    name.addEventListener('change', tidyName);
+    name.addEventListener('blur', tidyName);
     const clearBtn = button('Clear all', () => update(clearAll(editor!)));
     const playBtn = button('Play', () => playTest());
     let copiedTimer: ReturnType<typeof setTimeout> | null = null;

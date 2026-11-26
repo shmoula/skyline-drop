@@ -117,7 +117,8 @@ export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): 
           centred(`${n} SCORED ${s.challenge.score}`, 80);
           centred(s.score > s.challenge.score ? 'YOU BEAT IT!' : s.score === s.challenge.score ? 'MATCHED' : 'NOT THIS TIME', 96);
         }
-        centred(`BEST HERE ${s.best}`, 112);
+        if (s.newBest) centred('NEW BEST!', 112);
+        else centred(`BEST HERE ${s.best}`, 112);
         if (s.timerMs >= s.tuning.gameOverLockMs) centred('PRESS TO RETRY', 136);
         return;
       }

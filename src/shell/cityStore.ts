@@ -1,4 +1,4 @@
-import { decodeCity, encodeCity } from '../city/code';
+import { decodeCityAllowEmpty, encodeCity } from '../city/code';
 import type { EditorState } from '../editor/editor';
 import { CURRENT_RULES } from '../game/rules';
 
@@ -8,7 +8,7 @@ const CITY_BEST_PREFIX = 'skylinedrop.city.';
 /** Persist the editor draft; failures (private mode, quota) are ignored. */
 export function saveDraft(storage: Pick<Storage, 'setItem'> | null, e: EditorState): void {
   try {
-    const code = encodeCity({ rules: CURRENT_RULES, city: e.city, name: e.name, score: 0 });
+    const code = encodeCity({ rules: CURRENT_RULES, city: e.city, name: e.name.trimEnd(), score: 0 });
     storage?.setItem(DRAFT_KEY, JSON.stringify({ code, cleared: e.clearedScore, style: e.style }));
   } catch {
     // Losing a draft is not worth interrupting the editor.
@@ -24,9 +24,10 @@ export function loadDraft(storage: Pick<Storage, 'getItem'> | null): EditorState
     if (typeof parsed !== 'object' || parsed === null) return null;
     const { code, cleared, style } = parsed as Record<string, unknown>;
     if (typeof code !== 'string') return null;
-    const shared = decodeCity(code);
+    const shared = decodeCityAllowEmpty(code);
     if (!shared) return null;
-    const clearedScore = typeof cleared === 'number' && Number.isInteger(cleared) && cleared >= 0 ? cleared : null;
+    const clearedScore =
+      shared.rules === CURRENT_RULES && typeof cleared === 'number' && Number.isInteger(cleared) && cleared >= 0 ? cleared : null;
     const st = typeof style === 'number' && Number.isInteger(style) && style >= 1 ? style : 1;
     return { city: shared.city, style: st, name: shared.name, clearedScore };
   } catch {

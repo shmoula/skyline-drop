@@ -41,7 +41,8 @@ function encodeHead(c: Pick<SharedCity, 'rules' | 'city'>): string {
 }
 
 export function encodeCity(c: SharedCity): string {
-  return `${encodeHead(c)}.${c.score.toString(36)}.${c.name.replace(/ /g, '_')}`;
+  // Name sits before the score so a code always ends in a base-36 digit (linkifiers strip trailing . and _).
+  return `${encodeHead(c)}.${c.name.trimEnd().replace(/ /g, '_')}.${c.score.toString(36)}`;
 }
 
 /** The rules and columns part of the code: identifies a city regardless of who shared it. */
@@ -49,10 +50,17 @@ export function cityKey(c: Pick<SharedCity, 'rules' | 'city'>): string {
   return encodeHead(c);
 }
 
+/** Strict decode for shared links: a city with nothing built is rejected. */
 export function decodeCity(code: string): SharedCity | null {
+  const c = decodeCityAllowEmpty(code);
+  return c !== null && c.city.heights.some((h) => h > 0) ? c : null;
+}
+
+/** Like decodeCity but accepts an all-empty city; only for the editor draft. */
+export function decodeCityAllowEmpty(code: string): SharedCity | null {
   const parts = code.split('.');
   if (parts.length !== 3) return null;
-  const [head, scoreStr, nameStr] = parts as [string, string, string];
+  const [head, nameStr, scoreStr] = parts as [string, string, string];
   if (head.length !== HEAD_LEN) return null;
   if (!/^[A-Za-z0-9_-]+$/.test(head)) return null;
   if (head[0] !== FORMAT) return null;
@@ -78,6 +86,7 @@ export function decodeCity(code: string): SharedCity | null {
 
   if (!/^[A-Z0-9_]*$/.test(nameStr)) return null;
   const name = nameStr.replace(/_/g, ' ');
+  if (name.endsWith(' ')) return null;
   if (name.length > MAX_NAME || foldName(name) !== name) return null;
 
   return { rules, city: { heights, types }, name, score };

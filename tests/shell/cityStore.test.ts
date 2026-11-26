@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { newEditor, paint, recordClear, setName } from '../../src/editor/editor';
 import { loadDraft, readCityBest, saveDraft, writeCityBest } from '../../src/shell/cityStore';
 
@@ -45,6 +45,38 @@ describe('draft storage', () => {
     const raw = JSON.parse(s.getItem('skylinedrop.draft') as string);
     s.setItem('skylinedrop.draft', JSON.stringify({ ...raw, cleared: -3 }));
     expect(loadDraft(s)?.clearedScore).toBeNull();
+  });
+
+  it('drops the cleared score when the draft was cleared under other rules', async () => {
+    const s = memory();
+    saveDraft(s, recordClear(paint(newEditor(), 4, 20), 300));
+    vi.resetModules();
+    vi.doMock('../../src/game/rules', async (orig) => {
+      const real = await orig<typeof import('../../src/game/rules')>();
+      return { ...real, CURRENT_RULES: 2, getRules: (v: number) => (v === 2 ? real.getRules(1) : real.getRules(v)) };
+    });
+    try {
+      const store = await import('../../src/shell/cityStore');
+      const d = store.loadDraft(s);
+      expect(d).not.toBeNull();
+      expect(d!.clearedScore).toBeNull();
+      expect(d!.city.heights[4]).toBe(4);
+    } finally {
+      vi.doUnmock('../../src/game/rules');
+      vi.resetModules();
+    }
+  });
+
+  it('round-trips an empty draft', () => {
+    const s = memory();
+    saveDraft(s, setName(newEditor(), 'zed'));
+    expect(loadDraft(s)).toEqual(setName(newEditor(), 'zed'));
+  });
+
+  it('saves the draft name without trailing spaces', () => {
+    const s = memory();
+    saveDraft(s, setName(paint(newEditor(), 4, 20), 'ab '));
+    expect(loadDraft(s)?.name).toBe('AB');
   });
 
   it('swallows storage errors', () => {

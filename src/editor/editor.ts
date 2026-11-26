@@ -58,5 +58,5 @@ export function canShare(e: EditorState): boolean {
 
 export function toShared(e: EditorState, rules: number): SharedCity {
   if (e.clearedScore === null) throw new Error('City must be cleared before sharing');
-  return { rules, city: e.city, name: e.name, score: e.clearedScore };
+  return { rules, city: e.city, name: e.name.trimEnd(), score: e.clearedScore };
 }

@@ -5,9 +5,9 @@ import { cityWith, run, runUntil } from './helpers';
 
 const R = getRules(1)!;
 
-function cleared(best: number): GameState {
+function cleared(best: number, row = 2): GameState {
   let s = step(newCityGame({ city: cityWith({ 5: 3 }), rules: R, best, challenge: null }), { pressed: true }, 0);
-  s = { ...s, plane: { x: 5 * 16, row: 2 } };
+  s = { ...s, plane: { x: 5 * 16, row } };
   return runUntil(step(s, { pressed: true }, 0), (g) => g.phase === 'clearing');
 }
 
@@ -26,6 +26,12 @@ describe('single-city play', () => {
     const s = cleared(0);
     expect(s.clearedRow).toBe(2);
     expect(s.score).toBe(3 + 50 + 21 * 20);
+  });
+
+  it('height bonus scales with the row the plane clears on', () => {
+    const s = cleared(0, 10);
+    expect(s.clearedRow).toBe(10);
+    expect(s.score).toBe(3 + 50 + 13 * 20);
   });
 
   it('ends after one level and replays the same city', () => {
@@ -53,8 +59,11 @@ describe('single-city play', () => {
   it('a crash gets no height bonus and clearedRow stays null', () => {
     let s = step(newCityGame({ city: cityWith({ 0: 14 }), rules: R, best: 0, challenge: null }), { pressed: true }, 0);
     s = { ...s, plane: { x: -4, row: 2 } };
+    s = runUntil(s, (g) => g.phase === 'crashed');
+    expect(s.phase).toBe('crashed');
     s = runUntil(s, (g) => g.phase === 'gameOver');
     expect(s.phase).toBe('gameOver');
+    expect(s.newBest).toBe(false);
     expect(s.score).toBeLessThan(50);
     expect(s.clearedRow).toBeNull();
   });

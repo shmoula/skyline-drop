@@ -56,4 +56,10 @@ describe('editor state', () => {
     expect(s.name).toBe('ABC');
     expect(s.city.heights[4]).toBe(4);
   });
+
+  it('toShared trims trailing spaces from the name', () => {
+    const e = recordClear(setName(paint(newEditor(), 4, 20), 'ab '), 300);
+    expect(e.name).toBe('AB ');
+    expect(toShared(e, 1).name).toBe('AB');
+  });
 });

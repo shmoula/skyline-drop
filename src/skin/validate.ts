@@ -2,6 +2,7 @@ import { CELL_H, CELL_W, SCREEN_H, SCREEN_W } from '../game/grid';
 import type { ImageLike, SkinManifest } from './types';
 
 const MAX_PLANE_FRAME_W = 32;
+const MAX_BUILDING_TYPES = 63;
 const FONT_COLS = 16;
 const FONT_ROWS = 4; // ASCII 32–95
 
@@ -21,6 +22,9 @@ function manifestErrors(m: unknown): string[] {
   if (typeof o.name !== 'string') errors.push('skin.json: "name" must be a string');
   for (const key of ['buildingTypes', 'planeFrames', 'explosionFrames'] as const) {
     if (!posInt(o[key])) errors.push(`skin.json: "${key}" must be a positive whole number`);
+  }
+  if (posInt(o.buildingTypes) && (o.buildingTypes as number) > MAX_BUILDING_TYPES) {
+    errors.push(`skin.json: "buildingTypes" must be at most ${MAX_BUILDING_TYPES} (share links store the style in one character)`);
   }
   const font = o.font as Record<string, unknown> | undefined;
   if (!font || !posInt(font.charWidth) || !posInt(font.charHeight)) {
