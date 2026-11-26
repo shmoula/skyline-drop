@@ -99,13 +99,14 @@ export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): 
       if (s.mode === 'single' && s.phase === 'title') {
         city(s.city);
         ground();
+        // Keep the text above the 14-floor limit (y 80) so even the tallest city can't cover it.
         if (s.challenge) {
-          centred(`${displayName(s.challenge.name)}'S CITY`, 48);
-          centred(`BEAT ${s.challenge.score}`, 72);
+          centred(`${displayName(s.challenge.name)}'S CITY`, 24);
+          centred(`BEAT ${s.challenge.score}`, 40);
         } else {
-          centred('TEST YOUR CITY', 48);
+          centred('TEST YOUR CITY', 32);
         }
-        centred('PRESS SPACE OR TAP', 104);
+        centred('PRESS SPACE OR TAP', 64);
         return;
       }
       if (s.mode === 'single' && s.phase === 'gameOver') {

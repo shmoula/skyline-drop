@@ -16,6 +16,31 @@ npm test         # game-rule and skin tests
 npm run build    # static site in dist/
 ```
 
+## Build and share a city
+
+Press **Build a city** on the title screen, or open the game with `#edit` at
+the end of the address. Tap or drag on the picture to set each column's height
+(touch the ground to empty a column), pick a building style, and type your name.
+The draft is kept in your browser, so a reload doesn't lose it. CLEARABLE / TOO
+HARD in the corner is the game's own quick check.
+
+- **Play** test-flies your city as one level.
+- **Share** stays off until you have cleared *this exact city* yourself; editing
+  it again turns Share off until you clear it again. That way every shared city
+  is one somebody has beaten. The link carries your best clear as the score to
+  beat: on phones it opens the share sheet, elsewhere it copies the link.
+
+**Score:** floors bombed plus the clear bonus, plus a **height bonus** of 20
+points for every row the plane is still above the ground when the city falls.
+Clearing in fewer passes scores more; a crash gets no height bonus. Friends
+see their score against yours, and their best on each city is kept.
+
+Links look like `…/?skin=classic#c=<code>`. The city lives after `#`, so it
+never reaches a server. Each code carries a **rules version** that pins plane
+speed, bomb speed, plane width and scoring, so an old link keeps playing exactly
+as it did when it was shared, even after the game is retuned. The skin only
+changes the look; if the link's skin is gone, the city plays in `classic`.
+
 ## Make your own skin
 
 The whole look comes from a skin folder: a few small PNGs plus `skin.json`.
