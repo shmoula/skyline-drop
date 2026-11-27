@@ -5,7 +5,7 @@ itself, dropping one row lower every time it crosses the screen. Press to drop a
 bomb (one at a time) and flatten the city before you fly into it. Clear the city
 and you land; the next city is taller and denser.
 
-**Controls:** Space, Enter, mouse click or tap anywhere.
+**Controls:** Space, Enter, or a mouse click or tap on the game screen.
 
 ## Run it
 

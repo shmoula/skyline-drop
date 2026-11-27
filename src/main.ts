@@ -220,7 +220,9 @@ async function start(): Promise<void> {
     const key = cityKey(city);
     setBar([
       button('Build your own', () => {
-        location.hash = '#edit';
+        // Name the skin that actually loaded: if the link's skin was missing we fell back to classic,
+        // and edit mode doesn't fall back, so keeping the link's ?skin= would show a skin error.
+        location.href = `${location.pathname}?skin=${skinInfo.name}#edit`;
       }),
     ]);
     startGame(
@@ -316,6 +318,8 @@ async function start(): Promise<void> {
     };
 
     const showEditor = () => {
+      // Leaving while clearing or landing: the clear is already earned, so record it before the game is dropped.
+      if (state?.clearedRow != null) update(recordClear(editor!, state.score));
       stopGame();
       setBar(editorBar);
       refreshBar();
