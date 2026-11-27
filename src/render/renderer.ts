@@ -1,5 +1,8 @@
 import { EXPLOSION_MS, type GameState } from '../game/game';
-import { CELL_H, CELL_W, COLS, GROUND_ROW, SCREEN_H, SCREEN_W } from '../game/grid';
+import { displayName } from '../city/code';
+import type { City } from '../game/city';
+import type { EditorState } from '../editor/editor';
+import { CELL_H, CELL_W, COLS, GROUND_ROW, MAX_FLOORS, SCREEN_H, SCREEN_W } from '../game/grid';
 import type { ImageLike, Skin } from '../skin/types';
 
 export const GAME_TITLE = 'SKYLINE DROP';
@@ -7,7 +10,7 @@ export const GAME_TITLE = 'SKYLINE DROP';
 type Img = CanvasImageSource & ImageLike;
 
 /** Draws a GameState onto a 320×200 context using the active skin. Holds no game logic. */
-export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): { draw(s: GameState): void } {
+export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): { draw(s: GameState): void; drawEditor(e: EditorState, check: 'clearable' | 'too-hard' | 'empty'): void } {
   const { manifest: m } = skin;
   const cw = m.font.charWidth;
   const ch = m.font.charHeight;
@@ -34,9 +37,9 @@ export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): 
     for (let c = 0; c < COLS; c++) ctx.drawImage(skin.ground, c * CELL_W, GROUND_ROW * CELL_H);
   };
 
-  const city = (s: GameState) => {
-    s.city.heights.forEach((h, c) => {
-      const tiles = skin.buildings[(s.city.types[c] ?? 1) - 1] ?? skin.buildings[0]!;
+  const city = (cityData: City) => {
+    cityData.heights.forEach((h, c) => {
+      const tiles = skin.buildings[(cityData.types[c] ?? 1) - 1] ?? skin.buildings[0]!;
       for (let k = 0; k < h; k++) {
         ctx.drawImage(k === h - 1 ? tiles.roof : tiles.floor, c * CELL_W, (GROUND_ROW - 1 - k) * CELL_H);
       }
@@ -61,10 +64,64 @@ export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): 
     text(best, SCREEN_W - 8 - best.length * cw, 4);
   };
 
+  const isDark = (hex: string) => {
+    const n = parseInt(hex.replace('#', '').padEnd(6, '0').slice(0, 6), 16);
+    const lin = (v: number) => {
+      const x = v / 255;
+      return x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4;
+    };
+    return 0.2126 * lin((n >> 16) & 255) + 0.7152 * lin((n >> 8) & 255) + 0.0722 * lin(n & 255) < 0.5;
+  };
+
   return {
+    drawEditor(e, check) {
+      frame++;
+      background();
+      text('BUILD YOUR CITY', 8, 4);
+      const label = check === 'clearable' ? 'CLEARABLE' : check === 'too-hard' ? 'TOO HARD' : '';
+      if (label) text(label, SCREEN_W - 8 - label.length * cw, 4);
+      ctx.save();
+      ctx.strokeStyle = isDark(m.colours.background) ? '#FFF' : '#000';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([4, 4]);
+      const y = (GROUND_ROW - MAX_FLOORS) * CELL_H + 0.5;
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(SCREEN_W, y);
+      ctx.stroke();
+      ctx.restore();
+      city(e.city);
+      ground();
+    },
     draw(s) {
       frame++;
       background();
+      if (s.mode === 'single' && s.phase === 'title') {
+        city(s.city);
+        ground();
+        // Keep the text above the 14-floor limit (y 80) so even the tallest city can't cover it.
+        if (s.challenge) {
+          centred(`CITY BY ${displayName(s.challenge.name)}`, 24);
+          centred(`BEAT ${s.challenge.score}`, 40);
+        } else {
+          centred('TEST YOUR CITY', 32);
+        }
+        centred('PRESS SPACE OR TAP', 64);
+        return;
+      }
+      if (s.mode === 'single' && s.phase === 'gameOver') {
+        centred(s.clearedRow !== null ? `CLEARED ON ROW ${s.clearedRow}` : 'CRASHED', 40);
+        centred(`YOU SCORED ${s.score}`, 64);
+        if (s.challenge) {
+          const n = displayName(s.challenge.name);
+          centred(`${n} SCORED ${s.challenge.score}`, 80);
+          centred(s.score > s.challenge.score ? 'YOU BEAT IT!' : s.score === s.challenge.score ? 'MATCHED' : 'NOT THIS TIME', 96);
+        }
+        if (s.newBest) centred('NEW BEST!', 112);
+        else centred(`BEST HERE ${s.best}`, 112);
+        if (s.timerMs >= s.tuning.gameOverLockMs) centred('PRESS TO RETRY', 136);
+        return;
+      }
       if (s.phase === 'title') {
         ground();
         centred(GAME_TITLE, 56);
@@ -80,7 +137,7 @@ export function createRenderer(ctx: CanvasRenderingContext2D, skin: Skin<Img>): 
         if (s.timerMs >= s.tuning.gameOverLockMs) centred('PRESS TO PLAY', 120);
         return;
       }
-      city(s);
+      city(s.city);
       ground();
       if (s.bomb) ctx.drawImage(skin.bomb, s.bomb.col * CELL_W + (CELL_W - skin.bomb.width) / 2, Math.round(s.bomb.y));
       if (s.phase !== 'crashed') {

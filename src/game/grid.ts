@@ -9,3 +9,5 @@ export const ROWS = SCREEN_H / CELL_H; // 25
 export const PLANE_START_ROW = 2;
 /** Ground strip row; buildings stand on the row above it. */
 export const GROUND_ROW = 24;
+/** Tallest a single building can be, in floors. */
+export const MAX_FLOORS = 14;

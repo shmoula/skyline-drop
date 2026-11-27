@@ -8,6 +8,17 @@ describe('validateSkin', () => {
   });
 });
 
+describe('validateSkin style limit', () => {
+  it('rejects more than 63 building types', () => {
+    const errors = validateSkin({ ...MANIFEST, buildingTypes: 64 }, goodImages());
+    expect(errors.some((e) => e.includes('buildingTypes') && e.includes('63'))).toBe(true);
+  });
+  it('accepts exactly 63 building types in the manifest check', () => {
+    const errors = validateSkin({ ...MANIFEST, buildingTypes: 63 }, goodImages());
+    expect(errors.some((e) => e.includes('"buildingTypes"'))).toBe(false);
+  });
+});
+
 describe('validateSkin problems name the file', () => {
   const withImage = (file: string, image: { width: number; height: number } | undefined) => ({
     ...goodImages(),
